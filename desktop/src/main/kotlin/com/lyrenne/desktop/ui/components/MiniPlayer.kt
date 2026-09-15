@@ -105,6 +105,11 @@ fun MiniPlayer(
             BoxWithConstraints(Modifier.fillMaxSize()) {
                 val showSecondaryControls = maxWidth >= 840.dp
                 val showExtendedControls = maxWidth >= 1040.dp
+                val volumeSliderWidth = when {
+                    showExtendedControls -> 100.dp
+                    showSecondaryControls -> 80.dp
+                    else -> 64.dp
+                }
 
                 Row(
                     modifier = Modifier
@@ -386,18 +391,16 @@ fun MiniPlayer(
                         modifier = Modifier.size(20.dp)
                     )
                 }
-                if (showExtendedControls) {
-                    Slider(
-                        value = volume,
-                        onValueChange = {
-                            // If user drags slider, unmute
-                            if (isMuted) PreferencesManager.setMuted(false)
-                            PreferencesManager.setVolume(it)
-                            player.setVolume(it)
-                        },
-                        modifier = Modifier.width(100.dp)
-                    )
-                }
+                Slider(
+                    value = volume,
+                    onValueChange = {
+                        // If user drags slider, unmute
+                        if (isMuted) PreferencesManager.setMuted(false)
+                        PreferencesManager.setVolume(it)
+                        player.setVolume(it)
+                    },
+                    modifier = Modifier.width(volumeSliderWidth)
+                )
                 }
             }
         }
