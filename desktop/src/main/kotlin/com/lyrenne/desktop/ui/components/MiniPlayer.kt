@@ -17,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -29,6 +30,7 @@ import com.lyrenne.desktop.playback.DesktopPlayer
 import com.lyrenne.desktop.playback.RepeatMode
 import com.lyrenne.desktop.settings.PreferencesManager
 import com.lyrenne.desktop.sync.YouTubeWrites
+import com.lyrenne.desktop.ui.theme.LyrenneTokens
 import kotlinx.coroutines.launch
 
 @Composable
@@ -80,9 +82,9 @@ fun MiniPlayer(
     }
 
     Surface(
-        modifier = modifier.height(76.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        tonalElevation = 4.dp
+        modifier = modifier.height(LyrenneTokens.playerHeight),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        tonalElevation = 0.dp
     ) {
         Column {
             // Seekable progress bar
@@ -96,23 +98,27 @@ fun MiniPlayer(
                 colors = SliderDefaults.colors(
                     thumbColor = MaterialTheme.colorScheme.primary,
                     activeTrackColor = MaterialTheme.colorScheme.primary,
-                    inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                    inactiveTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest
                 )
             )
 
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            BoxWithConstraints(Modifier.fillMaxSize()) {
+                val showSecondaryControls = maxWidth >= 840.dp
+                val showExtendedControls = maxWidth >= 1040.dp
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                 // Album art
                 AsyncImage(
                     model = song.thumbnailUrl,
                     contentDescription = "Album art",
                     modifier = Modifier
                         .size(48.dp)
-                        .clip(RoundedCornerShape(4.dp)),
+                        .clip(RoundedCornerShape(LyrenneTokens.artworkRadius)),
                     contentScale = ContentScale.Crop
                 )
 
@@ -188,45 +194,33 @@ fun MiniPlayer(
                 }
 
                 // Like: the one library action people look for on the player itself.
-                IconButton(
-                    onClick = { toggleLike() },
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        contentDescription = if (isLiked) "Remove from liked songs" else "Add to liked songs",
-                        tint = if (isLiked)
-                            MaterialTheme.colorScheme.primary
-                        else
-                            MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                Spacer(Modifier.width(8.dp))
-
-                // Time display
-                Text(
-                    text = "${formatTime(state.position)} / ${formatTime(state.duration)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                PlayerIconButton(
+                    onClick = ::toggleLike,
+                    icon = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    contentDescription = if (isLiked) "Remove from liked songs" else "Add to liked songs",
+                    selected = isLiked
                 )
 
-                Spacer(Modifier.width(16.dp))
+                if (showExtendedControls) {
+                    Spacer(Modifier.width(8.dp))
+
+                    // Time display
+                    Text(
+                        text = "${formatTime(state.position)} / ${formatTime(state.duration)}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(Modifier.width(12.dp))
+                }
 
                 // Shuffle button
-                IconButton(
-                    onClick = { player.toggleShuffle() },
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Shuffle,
-                        contentDescription = "Shuffle",
-                        tint = if (state.shuffleEnabled)
-                            MaterialTheme.colorScheme.primary
-                        else
-                            MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
+                if (showSecondaryControls) {
+                    PlayerIconButton(
+                        onClick = player::toggleShuffle,
+                        icon = Icons.Default.Shuffle,
+                        contentDescription = if (state.shuffleEnabled) "Disable shuffle" else "Enable shuffle",
+                        selected = state.shuffleEnabled
                     )
                 }
 
@@ -253,21 +247,19 @@ fun MiniPlayer(
                 }
 
                 // Repeat button
-                IconButton(
-                    onClick = { player.toggleRepeat() },
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        when (state.repeatMode) {
+                if (showSecondaryControls) {
+                    PlayerIconButton(
+                        onClick = player::toggleRepeat,
+                        icon = when (state.repeatMode) {
                             RepeatMode.ONE -> Icons.Default.RepeatOne
                             else -> Icons.Default.Repeat
                         },
-                        contentDescription = "Repeat",
-                        tint = if (state.repeatMode != RepeatMode.OFF)
-                            MaterialTheme.colorScheme.primary
-                        else
-                            MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
+                        contentDescription = when (state.repeatMode) {
+                            RepeatMode.OFF -> "Enable repeat"
+                            RepeatMode.ALL -> "Repeat all enabled"
+                            RepeatMode.ONE -> "Repeat one enabled"
+                        },
+                        selected = state.repeatMode != RepeatMode.OFF
                     )
                 }
 
@@ -276,7 +268,7 @@ fun MiniPlayer(
                 // Queue button
                 IconButton(
                     onClick = onQueueClick,
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
                         Icons.AutoMirrored.Filled.QueueMusic,
@@ -286,38 +278,24 @@ fun MiniPlayer(
                 }
 
                 // Lyrics button
-                IconButton(
-                    onClick = onLyricsClick,
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        Icons.Default.MusicNote,
-                        contentDescription = "Lyrics",
-                        tint = if (lyricsActive)
-                            MaterialTheme.colorScheme.primary
-                        else
-                            MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
+                if (showSecondaryControls) {
+                    PlayerIconButton(
+                        onClick = onLyricsClick,
+                        icon = Icons.Default.MusicNote,
+                        contentDescription = if (lyricsActive) "Close lyrics" else "Open lyrics",
+                        selected = lyricsActive
                     )
                 }
 
                 // Playback speed button
-                Box {
+                if (showExtendedControls) Box {
                     val prefsForSpeed by PreferencesManager.preferences.collectAsState()
-                    IconButton(
+                    PlayerIconButton(
                         onClick = { showSpeedMenu = true },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Speed,
-                            contentDescription = "Playback speed",
-                            tint = if (prefsForSpeed.playbackSpeed != 1f)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+                        icon = Icons.Default.Speed,
+                        contentDescription = "Playback speed",
+                        selected = prefsForSpeed.playbackSpeed != 1f
+                    )
                     DropdownMenu(
                         expanded = showSpeedMenu,
                         onDismissRequest = { showSpeedMenu = false }
@@ -343,21 +321,13 @@ fun MiniPlayer(
                 }
 
                 // Sleep timer button
-                Box {
-                    IconButton(
+                if (showExtendedControls) Box {
+                    PlayerIconButton(
                         onClick = { showSleepMenu = true },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Bedtime,
-                            contentDescription = "Sleep timer",
-                            tint = if (sleepTimer != null)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+                        icon = Icons.Default.Bedtime,
+                        contentDescription = if (sleepTimer != null) "Sleep timer active" else "Sleep timer",
+                        selected = sleepTimer != null
+                    )
                     DropdownMenu(
                         expanded = showSleepMenu,
                         onDismissRequest = { showSleepMenu = false }
@@ -406,7 +376,7 @@ fun MiniPlayer(
                     onClick = {
                         MediaKeyHandler.toggleMute(player)
                     },
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
                         if (isMuted || volume == 0f) Icons.AutoMirrored.Filled.VolumeOff
@@ -416,16 +386,19 @@ fun MiniPlayer(
                         modifier = Modifier.size(20.dp)
                     )
                 }
-                Slider(
-                    value = volume,
-                    onValueChange = {
-                        // If user drags slider, unmute
-                        if (isMuted) PreferencesManager.setMuted(false)
-                        PreferencesManager.setVolume(it)
-                        player.setVolume(it)
-                    },
-                    modifier = Modifier.width(100.dp)
-                )
+                if (showExtendedControls) {
+                    Slider(
+                        value = volume,
+                        onValueChange = {
+                            // If user drags slider, unmute
+                            if (isMuted) PreferencesManager.setMuted(false)
+                            PreferencesManager.setVolume(it)
+                            player.setVolume(it)
+                        },
+                        modifier = Modifier.width(100.dp)
+                    )
+                }
+                }
             }
         }
     }
@@ -436,6 +409,33 @@ fun MiniPlayer(
             song = song,
             playlists = playlists,
             onDismiss = { showPlaylistPicker = false }
+        )
+    }
+}
+
+@Composable
+private fun PlayerIconButton(
+    onClick: () -> Unit,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String,
+    selected: Boolean = false
+) {
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier.size(40.dp),
+        colors = IconButtonDefaults.iconButtonColors(
+            containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+            contentColor = if (selected) {
+                MaterialTheme.colorScheme.onPrimaryContainer
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            }
+        )
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            modifier = Modifier.size(20.dp)
         )
     }
 }
