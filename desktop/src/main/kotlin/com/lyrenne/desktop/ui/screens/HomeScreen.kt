@@ -321,7 +321,8 @@ private fun HomeSectionItem(
     ) {
         AsyncImage(
             model = item.thumbnail,
-            contentDescription = item.title,
+            // The surrounding clickable tile merges its title text into one accessible label.
+            contentDescription = null,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(160.dp)
